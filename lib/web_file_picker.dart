@@ -1,10 +1,14 @@
 import 'dart:typed_data';
 
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:future_progress_dialog/future_progress_dialog.dart';
 import 'dart:html' as html;
+
+import 'api/dio_http_call.dart';
 
 class WebFilePickerScreen extends StatefulWidget {
   @override
@@ -34,54 +38,51 @@ class WebFilePickerState extends State<WebFilePickerScreen> {
                 onPressed: () async {
                   // Select file from File System. Limit the files to only
                   // allowed extensions
-                  var picked = await FilePicker.platform.pickFiles(
+                  final FilePickerResult? picked =
+                      await FilePicker.platform.pickFiles(
                     type: FileType.custom,
-                    allowedExtensions: ['pdf', 'csv'],
+                    allowedExtensions: ['pdf', 'csv', 'xlsx'],
                     withReadStream: true,
                   );
 
-                  // Making sure an actual file has been selected
+                  //Making sure an actual file has been selected
                   if (picked != null) {
-                    // Preparing HTTP POST request to send the file
-                    // Creating http package multipart request object
-                    final request = http.MultipartRequest(
-                      "POST", // Type of method
-                      Uri.parse("http://127.0.0.1:15000/ufile"), // URL
-                    );
+                    final String url = "http://127.0.0.1:15000/ufile";
+                    final DioAPI api = DioAPI();
 
-                    // Adding selected file
-                    request.files.add(
-                      new http.MultipartFile(
-                        "filebytes",
-                        picked.files.first.readStream!,
-                        picked.files.first.size,
-                        filename: picked.files.first.name,
+                    final bool? requestStatus = await showDialog<bool>(
+                      barrierDismissible: false,
+                      context: context,
+                      builder: (context) => SizedBox(
+                        width: 400,
+                        child: FutureProgressDialog(
+                          api.fileUpload(loadedFile: picked, url: url),
+                          message: Text('Uploading file...'),
+                        ),
                       ),
                     );
 
-                    // Sending request
-                    http.StreamedResponse response = await request.send();
-
-                    // Parse raw response
-                    http.Response parsedResponse =
-                        await http.Response.fromStream(response);
-
-                    // Check Status
-                    if (parsedResponse.statusCode == 200) {
-                      // Parse body
-                      Map<String, dynamic> recvJson =
-                          JsonDecoder().convert(parsedResponse.body);
-
-                      // Extract values
-                      var message = recvJson['message'];
-                      print(message);
-
-                      // Do something else
-                      setState(() {});
+                    String message = "";
+                    DialogType dialogType = DialogType.info;
+                    if (requestStatus!) {
+                      message = "File upload was successful";
                     } else {
-                      // Reportar error
-                      // Do something
+                      message = "An error occurred while uploading the file";
+                      dialogType = DialogType.error;
                     }
+
+                    AwesomeDialog(
+                      context: context,
+                      dialogType: dialogType,
+                      width: 400,
+                      dismissOnTouchOutside: true,
+                      dismissOnBackKeyPress: true,
+                      animType: AnimType.bottomSlide,
+                      title: 'WARNING',
+                      desc: message,
+                      showCloseIcon: true,
+                      btnOkOnPress: () {},
+                    ).show();
                   }
                 },
               ),

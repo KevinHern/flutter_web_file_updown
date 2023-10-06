@@ -47,7 +47,7 @@ def save_file():
         try:
             # Obtaining the file encoded in the POST request (YES! You don't need to encode sent files in the POST request)
             # Using the self-made field (created in the original request) 'filebytes'.
-            file_to_save = request.files['filebytes']
+            file_to_save = request.files['file']
 
             # Saving the file itself using its own name
             file_to_save.save(os.path.join(uploads_dir, file_to_save.filename))
